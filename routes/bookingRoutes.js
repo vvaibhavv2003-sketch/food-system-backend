@@ -136,12 +136,12 @@ router.get('/status', async (req, res) => {
 // @route   PUT /api/bookings/status/:tableNumber
 router.put('/status/:tableNumber', async (req, res) => {
     const { tableNumber } = req.params;
-    const { status } = req.body;
-    const today = new Date().toISOString().split('T')[0];
+    const { status, date } = req.body;
+    const targetDate = date || new Date().toISOString().split('T')[0];
 
     try {
-        // Find if there's an existing booking for today
-        let booking = await TableBooking.findOne({ tableNumber, date: today }).sort({ createdAt: -1 });
+        // Find if there's an existing booking for the specified date
+        let booking = await TableBooking.findOne({ tableNumber, date: targetDate }).sort({ createdAt: -1 });
 
         if (booking) {
             booking.status = status;
@@ -155,7 +155,7 @@ router.put('/status/:tableNumber', async (req, res) => {
                     name: 'Walk-in / Admin Set',
                     email: 'admin@gourmet.com',
                     mobile: '0000000000',
-                    date: today,
+                    date: targetDate,
                     time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
                     guests: 'N/A'
                 });
