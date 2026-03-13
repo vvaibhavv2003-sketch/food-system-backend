@@ -49,14 +49,14 @@ const sendEmailOTP = async (email, otp) => {
 };
 */
 
-// @desc    Register Intent & Send OTP
+// @desc    Register & Create User Directly (OTP Bypassed)
 // @route   POST /api/auth/register
 router.post('/register', async (req, res) => {
-    let { email, mobile } = req.body;
+    let { name, email, mobile, password, role } = req.body;
     if (email) email = email.trim().toLowerCase();
 
     // DEBUG: Log registration attempt
-    console.log(`[AUTH-DEBUG] Registering Email: '${email}', Mobile: '${mobile}'`);
+    console.log(`[AUTH-DEBUG] Registering Name: '${name}', Email: '${email}', Mobile: '${mobile}'`);
 
     try {
         // Check if user already exists
@@ -67,26 +67,26 @@ router.post('/register', async (req, res) => {
             return res.status(400).json({ message: 'User already exists (Email or Mobile)' });
         }
 
-        /* 
-        const otp = generateOTP();
-        const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+        // Create the user directly
+        const user = await User.create({
+            name,
+            email,
+            mobile,
+            password, // Model will hash this
+            role: role || 'user',
+            isVerified: true
+        });
 
-        // Store OTP temporarily
-        await OtpData.findOneAndUpdate(
-            { mobile },
-            { otp, expiresAt },
-            { upsert: true, new: true }
-        );
+        console.log(`[AUTH-DEBUG] User created successfully: ID=${user._id}`);
 
-        // Send Email OTP
-        await sendEmailOTP(email, otp);
-
-        console.log(`[AUTH-DEBUG] Register request completed. OTP created for ${mobile}. NO USER CREATED YET.`);
-        */
-
-        res.status(200).json({
-            message: 'OTP disabled for now',
-            // otp: otp // Keep for your testing
+        res.status(201).json({
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            mobile: user.mobile,
+            role: user.role,
+            token: 'mock-jwt-token-123',
+            message: 'Registration successful'
         });
     } catch (error) {
         console.error(`[AUTH-DEBUG] Error in register: ${error.message}`);
