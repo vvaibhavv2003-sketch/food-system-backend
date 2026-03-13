@@ -52,11 +52,14 @@ const sendEmailOTP = async (email, otp) => {
 // @desc    Register & Create User Directly (OTP Bypassed)
 // @route   POST /api/auth/register
 router.post('/register', async (req, res) => {
-    let { name, email, mobile, password, role } = req.body;
+    let { name, firstName, lastName, email, mobile, password, role, gender, address } = req.body;
     if (email) email = email.trim().toLowerCase();
 
+    // Construct full name if firstName/lastName provided but name is not
+    const fullName = name || (firstName && lastName ? `${firstName} ${lastName}` : firstName || lastName || '');
+
     // DEBUG: Log registration attempt
-    console.log(`[AUTH-DEBUG] Registering Name: '${name}', Email: '${email}', Mobile: '${mobile}'`);
+    console.log(`[AUTH-DEBUG] Registering Email: '${email}', Mobile: '${mobile}', Role: '${role}'`);
 
     try {
         // Check if user already exists
@@ -69,11 +72,15 @@ router.post('/register', async (req, res) => {
 
         // Create the user directly
         const user = await User.create({
-            name,
+            name: fullName,
+            firstName,
+            lastName,
             email,
             mobile,
             password, // Model will hash this
             role: role || 'user',
+            gender,
+            address,
             isVerified: true
         });
 
