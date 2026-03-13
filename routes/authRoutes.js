@@ -5,8 +5,8 @@ const User = require('../models/User');
 const OtpData = require('../models/OtpData');
 const nodemailer = require('nodemailer');
 
-// Helper to generate 4 digit OTP
-const generateOTP = () => Math.floor(1000 + Math.random() * 9000).toString();
+// // Helper to generate 4 digit OTP
+// const generateOTP = () => Math.floor(1000 + Math.random() * 9000).toString();
 
 const transporter = require('../utils/mailer');
 
@@ -19,6 +19,7 @@ transporter.verify((error, success) => {
     }
 });
 
+/*
 // Helper to send Email OTP
 const sendEmailOTP = async (email, otp) => {
     try {
@@ -46,6 +47,7 @@ const sendEmailOTP = async (email, otp) => {
         console.error(`[EMAIL-CRITICAL-FAIL] Error sending email: ${error.message}`);
     }
 };
+*/
 
 // @desc    Register Intent & Send OTP
 // @route   POST /api/auth/register
@@ -65,6 +67,7 @@ router.post('/register', async (req, res) => {
             return res.status(400).json({ message: 'User already exists (Email or Mobile)' });
         }
 
+        /* 
         const otp = generateOTP();
         const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
 
@@ -79,10 +82,11 @@ router.post('/register', async (req, res) => {
         await sendEmailOTP(email, otp);
 
         console.log(`[AUTH-DEBUG] Register request completed. OTP created for ${mobile}. NO USER CREATED YET.`);
+        */
 
         res.status(200).json({
-            message: 'OTP sent to your email',
-            otp: otp // Keep for your testing
+            message: 'OTP disabled for now',
+            // otp: otp // Keep for your testing
         });
     } catch (error) {
         console.error(`[AUTH-DEBUG] Error in register: ${error.message}`);
@@ -96,6 +100,7 @@ router.post('/verify-otp', async (req, res) => {
     const { mobile, otp, userData } = req.body;
 
     try {
+        /*
         const otpRecord = await OtpData.findOne({ mobile });
 
         if (!otpRecord) {
@@ -103,7 +108,8 @@ router.post('/verify-otp', async (req, res) => {
         }
 
         if (otpRecord.otp === otp && otpRecord.expiresAt > Date.now()) {
-            // OTP is valid, now create the user
+        */
+            // OTP is valid (Flow bypassed), now create the user
             const { name, email, password, role } = userData;
 
             // Double check if user was created in the meantime
@@ -133,9 +139,11 @@ router.post('/verify-otp', async (req, res) => {
                 token: 'mock-jwt-token-123',
                 message: 'Account verified and created successfully'
             });
+        /*
         } else {
             res.status(400).json({ message: 'Invalid or expired OTP' });
         }
+        */
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -199,6 +207,7 @@ router.post('/forgot-password', async (req, res) => {
             return res.status(404).json({ message: `No account found with ${searchVal}` });
         }
 
+        /*
         const otp = generateOTP();
         user.otp = otp;
         user.otpExpires = Date.now() + 10 * 60 * 1000;
@@ -206,8 +215,9 @@ router.post('/forgot-password', async (req, res) => {
 
         console.log(`[AUTH-DEBUG] Found user: ${user.email}. Sending OTP...`);
         await sendEmailOTP(user.email, otp);
+        */
 
-        res.json({ message: `Success! OTP has been sent to ${user.email}` });
+        res.json({ message: `Success! OTP feature is temporarily disabled.` });
     } catch (error) {
         console.error(`[AUTH-DEBUG] Forgot Password Error: ${error.message}`);
         res.status(500).json({ message: error.message });
@@ -234,16 +244,20 @@ router.post('/reset-password', async (req, res) => {
             return res.status(400).json({ message: 'User not found' });
         }
 
+        /*
         if (user.otp === otp && user.otpExpires > Date.now()) {
+        */
             user.password = newPassword; // Model will hash this
             user.otp = undefined;
             user.otpExpires = undefined;
             await user.save();
 
             res.json({ message: 'Password reset successfully. Please login.' });
+        /*
         } else {
             res.status(400).json({ message: 'Invalid or expired OTP' });
         }
+        */
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
