@@ -3,11 +3,34 @@ const router = express.Router();
 const TableBooking = require('../models/TableBooking');
 const transporter = require('../utils/mailer');
 
+// Helper to normalize date to YYYY-MM-DD
+const normalizeDate = (dateStr) => {
+    if (!dateStr) return null;
+    try {
+        // If it's MM/DD/YYYY
+        if (dateStr.includes('/')) {
+            const [m, d, y] = dateStr.split('/');
+            return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+        }
+        // If it's already YYYY-MM-DD or similar, try parsing and re-formatting
+        const d = new Date(dateStr);
+        if (!isNaN(d.getTime())) {
+            return d.toISOString().split('T')[0];
+        }
+        return dateStr;
+    } catch (e) {
+        return dateStr;
+    }
+};
+
 // @desc    Book a table
 // @route   POST /api/bookings
 router.post('/', async (req, res) => {
     console.log('[BOOKING-API] Received booking request:', req.body);
-    const { name, email, mobile, date, time, guests, tableNumber } = req.body;
+    let { name, email, mobile, date, time, guests, tableNumber } = req.body;
+
+    // Normalize date before saving
+    date = normalizeDate(date);
 
     try {
         if (!name || !email || !mobile || !date || !time || !guests || !tableNumber) {
@@ -53,15 +76,12 @@ router.post('/', async (req, res) => {
                     };
                     await transporter.sendMail(mailOptions);
                     console.log(`[BOOKING-EMAIL] Confirmation sent successfully to ${email}`);
-                } else {
-                    console.log(`[BOOKING-SIMULATION] Email skipped: No credentials in .env`);
                 }
             } catch (err) {
                 console.error(`[BOOKING-EMAIL-ERROR] Failed to send email: ${err.message}`);
             }
         };
 
-        // Fire and forget
         sendEmail();
 
         res.status(201).json({
@@ -79,39 +99,18 @@ router.post('/', async (req, res) => {
 // @route   GET /api/bookings/status
 router.get('/status', async (req, res) => {
     try {
-        let queryDate = req.query.date;
-        const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-        
-        // If no date provided, default to today
-        if (!queryDate) {
-            queryDate = todayStr;
-        }
+        let queryDate = normalizeDate(req.query.date) || new Date().toISOString().split('T')[0];
 
         console.log(`[BOOKING-STATUS] Querying tables for date: ${queryDate}`);
 
-        // Find bookings for this date
-        // Try exact match first
-        let bookings = await TableBooking.find({ date: queryDate });
+        // Find bookings for this date (All should be YYYY-MM-DD now)
+        const bookings = await TableBooking.find({ date: queryDate });
         
-        // If no bookings found and it's today's date in YYYY-MM-DD, 
-        // try finding with potential MM/DD/YYYY format just in case
-        if (bookings.length === 0 && queryDate === todayStr) {
-            const alternativeDate = new Date().toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit'
-            }); // MM/DD/YYYY
-            console.log(`[BOOKING-STATUS] No YYYY-MM-DD bookings, trying alternative: ${alternativeDate}`);
-            bookings = await TableBooking.find({ date: alternativeDate });
-        }
-
         console.log(`[BOOKING-STATUS] Found ${bookings.length} active bookings`);
 
         // We have 12 tables
         const tables = Array.from({ length: 12 }, (_, i) => {
             const tableNum = i + 1;
-            // Support both "T-001" and "1" style table numbers if necessary
-            // Looking at the frontend, it says "T-001" but usually backend stores numbers
             const booking = bookings.find(b => {
                 const bTable = String(b.tableNumber).replace('T-', '').replace('-', '');
                 return parseInt(bTable) === tableNum;
@@ -136,18 +135,18 @@ router.get('/status', async (req, res) => {
 // @route   PUT /api/bookings/status/:tableNumber
 router.put('/status/:tableNumber', async (req, res) => {
     const { tableNumber } = req.params;
-    const { status, date } = req.body;
-    const targetDate = date || new Date().toISOString().split('T')[0];
+    let { status, date } = req.body;
+    const targetDate = normalizeDate(date) || new Date().toISOString().split('T')[0];
 
     try {
-        // Find if there's an existing booking for the specified date
+        console.log(`[BOOKING-UPDATE] Updating Table ${tableNumber} for ${targetDate} to ${status}`);
+        
         let booking = await TableBooking.findOne({ tableNumber, date: targetDate }).sort({ createdAt: -1 });
 
         if (booking) {
             booking.status = status;
             await booking.save();
         } else {
-            // If no booking but status is changing from Available, create a placeholder
             if (status !== 'Available') {
                 booking = await TableBooking.create({
                     tableNumber,
